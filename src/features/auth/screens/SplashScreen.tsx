@@ -14,8 +14,11 @@ const SplashScreen = () => {
     const checkUser = async () => {
       let savedUser: User | null = null;
       try {
+        const isLoggedIn = await AsyncStorage.getItem('@stouchi/isLoggedIn');
         const json = await AsyncStorage.getItem('@stouchi/user');
-        if (json) savedUser = JSON.parse(json);
+        if (isLoggedIn === 'true' && json) {
+          savedUser = JSON.parse(json);
+        }
       } catch (error) {
         savedUser = null;
       }

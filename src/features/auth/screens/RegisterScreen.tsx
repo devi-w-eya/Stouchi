@@ -65,8 +65,7 @@ const RegisterScreen = () => {
     };
 
     try {
-      await AsyncStorage.setItem('@stouchi/user', JSON.stringify(newUser));
-      dispatch(setUser(newUser));
+      await AsyncStorage.setItem('@stouchi/isLoggedIn', 'true');      dispatch(setUser(newUser));
       router.replace('/home');
     } catch (error) {
       setErrors((prev) => ({ ...prev, name: 'Something went wrong, try again' }));

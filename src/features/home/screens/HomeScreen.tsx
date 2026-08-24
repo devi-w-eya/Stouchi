@@ -183,22 +183,8 @@ export default function HomeScreen() {
           progressState="over"
           showPercentLabel
         />
-        <TouchableOpacity
-          style={[styles.testButton, { borderColor: colors.primary }]}
-          onPress={() => router.push("/category")}
-        >
-          <Text style={{ color: colors.primary, fontWeight: "600" }}>
-            Test: Go to Categories
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.logoutButton, { borderColor: colors.expense }]}
-          onPress={handleLogout}
-        >
-          <Text style={{ color: colors.expense, fontWeight: "600" }}>
-            Logout
-          </Text>
-        </TouchableOpacity>
+        
+        
       </ScrollView>
     </SafeAreaView>
   );

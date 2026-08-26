@@ -70,6 +70,7 @@ export default function CategoriesListScreen() {
                   percent > 100 ? "over" : percent > 80 ? "warning" : "normal"
                 }
                 showPercentLabel
+                 onPress={() => router.push(`/category-detail/${category.id}`)}
               />
             );
           })

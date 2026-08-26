@@ -20,6 +20,7 @@ export default function CreateEditCategoryScreen() {
   const [selectedColor, setSelectedColor] = useState<typeof COLOR_PRESETS[number]>('primary');
   const [budgetAmount, setBudgetAmount] = useState('');
   const [savingsGoal, setSavingsGoal] = useState('');
+  
 
   const [errors, setErrors] = useState({ name: '', icon: '', budgetAmount: '' });
 

@@ -3,6 +3,7 @@ import authReducer from '../features/auth/authSlice';
 import categoriesReducer from '../features/categories/categorySlice';
 import transactionsReducer from '../features/transactions/transactionSlice';
 import recurringReducer from '../features/recurring/recurringSlice';
+import badgesReducer from '../features/badges/badgeSlice';
 
 export const store = configureStore({
   reducer: {
@@ -11,6 +12,7 @@ export const store = configureStore({
     transactions: transactionsReducer,
     wishlist: wishlistReducer,
     recurring: recurringReducer,
+    badges: badgesReducer,
   },
 });
 

@@ -166,29 +166,32 @@ export default function CategoryDetailScreen() {
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {tab === "EXPENSES" ? (
-          categoryTransactions.length === 0 ? (
-            <Text
-              style={{
-                color: colors.textSecondary,
-                textAlign: "center",
-                marginTop: 40,
-              }}
+          <View>
+            <TouchableOpacity
+              onPress={() => router.push(`/create-recurring?categoryId=${category.id}` as any)}
+              style={[styles.recurringButton, { borderColor: colors.primary }]}
             >
-              No expenses yet in this category
-            </Text>
-          ) : (
-            categoryTransactions.map((t) => (
-              <Card
-                key={t.id}
-                icon={category.icon}
-                title={t.note || category.name}
-                date={new Date(t.date).toLocaleDateString()}
-                badgeLabel={t.paidFrom === "SAVINGS" ? "🏦 Savings" : undefined}
-                amountLabel={`${t.amount} TND`}
-                amountColorKey="expense"
-              />
-            ))
-          )
+              <Text style={{ color: colors.primary, fontWeight: "600" }}>🔄 Add Recurring Expense</Text>
+            </TouchableOpacity>
+
+            {categoryTransactions.length === 0 ? (
+              <Text style={{ color: colors.textSecondary, textAlign: "center", marginTop: 40 }}>
+                No expenses yet in this category
+              </Text>
+            ) : (
+              categoryTransactions.map((t) => (
+                <Card
+                  key={t.id}
+                  icon={category.icon}
+                  title={t.note || category.name}
+                  date={new Date(t.date).toLocaleDateString()}
+                  badgeLabel={t.paidFrom === "SAVINGS" ? "🏦 Savings" : undefined}
+                  amountLabel={`${t.amount} TND`}
+                  amountColorKey="expense"
+                />
+              ))
+            )}
+          </View>
         ) : null}
 
         {tab === "BUDGET" ? (
@@ -579,4 +582,5 @@ const styles = StyleSheet.create({
   confirmCancelButton: { padding: 10 },
   confirmDeleteButton: { padding: 10, borderRadius: 8, paddingHorizontal: 16 },
   seeAllLink: { marginTop: 12, alignItems: "center", padding: 8 },
+  recurringButton: { padding: 10, borderRadius: 8, borderWidth: 1, alignItems: "center", marginBottom: 12 },
 });

@@ -2,6 +2,7 @@ import { configureStore } from '@reduxjs/toolkit';
 import authReducer from '../features/auth/authSlice';
 import categoriesReducer from '../features/categories/categorySlice';
 import transactionsReducer from '../features/transactions/transactionSlice';
+import recurringReducer from '../features/recurring/recurringSlice';
 
 export const store = configureStore({
   reducer: {
@@ -9,6 +10,7 @@ export const store = configureStore({
     categories: categoriesReducer,
     transactions: transactionsReducer,
     wishlist: wishlistReducer,
+    recurring: recurringReducer,
   },
 });
 

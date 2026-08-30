@@ -21,6 +21,7 @@ import {
   PaidFrom,
 } from "../transactionSlice";
 import { editCategory } from "../../categories/categorySlice";
+import { useBadgeCheck } from "../../badges/useBadgeCheck";
 
 type TxMode = "INCOME" | "EXPENSE" | "WISHLIST";
 
@@ -42,6 +43,7 @@ export default function AddTransactionScreen() {
   const [paidFrom, setPaidFrom] = useState<PaidFrom>("BUDGET");
   const [note, setNote] = useState("");
   const [error, setError] = useState("");
+  const { checkAndUnlockBadges } = useBadgeCheck();
 
   const visibleCategories = categories;
   const selectedCategory = categories.find((c) => c.id === selectedCategoryId);
@@ -133,6 +135,7 @@ export default function AddTransactionScreen() {
         }),
       );
     }
+    checkAndUnlockBadges();
 
     router.back();
   };

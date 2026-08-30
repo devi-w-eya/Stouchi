@@ -13,6 +13,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { router } from "expo-router";
 import { useTheme } from "../../../context/ThemeContext";
 import { RootState } from "../../../store";
+import { addWishlistItem, WishlistItem } from "../../wishlist/wishlistSlice";
 import {
   addTransaction,
   Transaction,
@@ -28,6 +29,8 @@ export default function AddTransactionScreen() {
   const dispatch = useDispatch();
   const user = useSelector((state: RootState) => state.auth.user);
   const categories = useSelector((state: RootState) => state.categories.items);
+  const [wishlistName, setWishlistName] = useState("");
+  const [wishlistStatus, setWishlistStatus] = useState<"PLANNED" | "HESITATING">("PLANNED");
 
   const [mode, setMode] = useState<TxMode>("EXPENSE");
   const [amount, setAmount] = useState("0");
@@ -54,7 +57,42 @@ export default function AddTransactionScreen() {
   };
 
   const handleSave = () => {
-    const numAmount = Number(amount);
+    const numAmount = Number(amount) || 0;
+
+    if (mode === "WISHLIST") {
+      if (!wishlistName.trim()) {
+        setError("Enter an item name");
+        return;
+      }
+      if (numAmount <= 0) {
+        setError("Enter a valid price");
+        return;
+      }
+      if (!selectedCategoryId) {
+        setError("Pick a category");
+        return;
+      }
+      setError("");
+
+      const newItem: WishlistItem = {
+        id: Date.now().toString(),
+        userId: user?.id ?? "unknown",
+        categoryId: selectedCategoryId,
+        name: wishlistName,
+        price: numAmount,
+        status: wishlistStatus,
+        timerDurationMinutes: wishlistStatus === "HESITATING" ? 1440 : null,
+        timerStartedAt:
+          wishlistStatus === "HESITATING" ? new Date().toISOString() : null,
+        note: note || null,
+        createdAt: new Date().toISOString(),
+      };
+
+      dispatch(addWishlistItem(newItem));
+      router.back();
+      return;
+    }
+
     if (!numAmount || numAmount <= 0) {
       setError("Enter a valid amount");
       return;
@@ -162,16 +200,70 @@ export default function AddTransactionScreen() {
         </View>
 
         {mode === "WISHLIST" ? (
-          <Text
-            style={{
-              color: colors.textSecondary,
-              textAlign: "center",
-              marginTop: 40,
-            }}
-          >
-            Wishlist — Coming soon
-          </Text>
-        ) : (
+  <>
+    <Text style={[styles.label, { color: colors.textSecondary }]}>Item Name</Text>
+    <TextInput
+      style={[styles.noteInput, { borderColor: colors.border, color: colors.textPrimary }]}
+      placeholder="e.g. Dyson Airwrap" placeholderTextColor={colors.textSecondary}
+      value={wishlistName} onChangeText={setWishlistName}
+    />
+
+    <View style={styles.amountRow}>
+      <Text style={{ color: colors.savings, fontSize: 40, fontWeight: "700" }}>{amount}</Text>
+      <Text style={{ color: colors.textSecondary, fontSize: 18, marginLeft: 6 }}>TND</Text>
+    </View>
+
+    <Text style={[styles.label, { color: colors.textSecondary }]}>Category</Text>
+    <View style={styles.chipRow}>
+      {categories.filter((c) => c.type === "EXPENSE").map((c) => (
+        <TouchableOpacity
+          key={c.id}
+          onPress={() => setSelectedCategoryId(c.id)}
+          style={[styles.chip, { borderColor: selectedCategoryId === c.id ? colors.primary : colors.border }]}
+        >
+          <Text style={{ color: colors.textPrimary, fontSize: 13 }}>{c.icon} {c.name}</Text>
+        </TouchableOpacity>
+      ))}
+    </View>
+
+    <Text style={[styles.label, { color: colors.textSecondary }]}>Status</Text>
+    <View style={styles.payFromRow}>
+      <TouchableOpacity
+        onPress={() => setWishlistStatus("PLANNED")}
+        style={[styles.payFromCard, { borderColor: wishlistStatus === "PLANNED" ? colors.primary : colors.border }]}
+      >
+        <Text style={{ color: colors.textPrimary, fontWeight: "600" }}>📌 Planned</Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        onPress={() => setWishlistStatus("HESITATING")}
+        style={[styles.payFromCard, { borderColor: wishlistStatus === "HESITATING" ? colors.primary : colors.border }]}
+      >
+        <Text style={{ color: colors.textPrimary, fontWeight: "600" }}>🤔 Hesitating</Text>
+      </TouchableOpacity>
+    </View>
+
+    <Text style={[styles.label, { color: colors.textSecondary }]}>Note (optional)</Text>
+    <TextInput
+      style={[styles.noteInput, { borderColor: colors.border, color: colors.textPrimary }]}
+      placeholder="Add a note..." placeholderTextColor={colors.textSecondary}
+      value={note} onChangeText={setNote}
+    />
+
+    {error ? <Text style={{ color: colors.expense, textAlign: "center", marginTop: 8 }}>{error}</Text> : null}
+
+    <View style={styles.numpad}>
+      {["1","2","3","4","5","6","7","8","9",".","0","del"].map((key) => (
+        <TouchableOpacity key={key} onPress={() => handleNumpadPress(key)} style={[styles.numpadKey, { borderColor: colors.border }]}>
+          <Text style={{ color: colors.textPrimary, fontSize: 20 }}>{key === "del" ? "⌫" : key}</Text>
+        </TouchableOpacity>
+      ))}
+    </View>
+
+    <TouchableOpacity style={[styles.saveButton, { backgroundColor: colors.primary }]} onPress={handleSave}>
+      <Text style={{ color: "#000000", fontWeight: "700" }}>Add to Wishlist</Text>
+    </TouchableOpacity>
+  </>
+) :   (
           <>
             <View style={styles.amountRow}>
               <Text

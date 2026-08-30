@@ -5,6 +5,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useTheme } from "../../src/context/ThemeContext";
 import { logout } from "../../src/features/auth/authSlice";
 
+
 export default function ProfileScreen() {
   const { colors } = useTheme();
   const dispatch = useDispatch();
@@ -20,21 +21,28 @@ export default function ProfileScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <Text style={{ color: colors.textPrimary, fontSize: 18, marginBottom: 20 }}>
-        Profile — Coming soon
-      </Text>
-      <TouchableOpacity
-        style={[styles.logoutButton, { borderColor: colors.expense }]}
-        onPress={handleLogout}
-      >
-        <Text style={{ color: colors.expense, fontWeight: "600" }}>Logout</Text>
-      </TouchableOpacity>
-    </View>
+    
+  <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <Text style={{ color: colors.textPrimary, fontSize: 18, marginBottom: 20 }}>
+      Profile — Coming soon
+    </Text>
+    <TouchableOpacity
+      style={[styles.logoutButton, { borderColor: colors.expense }]}
+      onPress={handleLogout}
+    >
+      <Text style={{ color: colors.expense, fontWeight: "600" }}>Logout</Text>
+    </TouchableOpacity>
+
+    <TouchableOpacity onPress={() => router.push("/wishlist" as any)} style={[styles.linkButton, { borderColor: colors.primary }]}>
+      <Text style={{ color: colors.primary, fontWeight: "600" }}>🛍️ View Wishlist</Text>
+    </TouchableOpacity>
+  </View>
+
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, justifyContent: "center", alignItems: "center" },
   logoutButton: { marginTop: 12, padding: 12, borderRadius: 8, borderWidth: 1, alignItems: "center" },
+  linkButton: { marginTop: 12, padding: 12, borderRadius: 8, borderWidth: 1, alignItems: "center" },
 });

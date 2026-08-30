@@ -8,8 +8,10 @@ export const store = configureStore({
     auth: authReducer,
     categories: categoriesReducer,
     transactions: transactionsReducer,
+    wishlist: wishlistReducer,
   },
 });
 
 export type RootState = ReturnType<typeof store.getState>;
 export type AppDispatch = typeof store.dispatch;
+import wishlistReducer from '../features/wishlist/wishlistSlice';

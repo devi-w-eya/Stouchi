@@ -1,12 +1,12 @@
 import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import {
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { useDispatch, useSelector } from "react-redux";
 import { Card } from "../../../components/Card";
@@ -24,6 +24,7 @@ export default function CategoryDetailScreen() {
   const [showMenu, setShowMenu] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteChoice, setDeleteChoice] = useState<"keep" | "delete">("keep");
+  const wishlistItems = useSelector((state: RootState) => state.wishlist.items);
 
   const category = useSelector((state: RootState) =>
     state.categories.items.find((c) => c.id === id),
@@ -312,17 +313,61 @@ export default function CategoryDetailScreen() {
             </View>
           </View>
         ) : null}
-
         {tab === "WISHLIST" ? (
-          <Text
-            style={{
-              color: colors.textSecondary,
-              textAlign: "center",
-              marginTop: 40,
-            }}
-          >
-            Wishlist — Coming soon
-          </Text>
+          <View>
+            {(() => {
+              const categoryWishlistItems = wishlistItems.filter(
+                (i) => i.categoryId === category.id,
+              );
+
+              if (categoryWishlistItems.length === 0) {
+                return (
+                  <Text
+                    style={{
+                      color: colors.textSecondary,
+                      textAlign: "center",
+                      marginTop: 40,
+                    }}
+                  >
+                    No wishlist items in this category yet
+                  </Text>
+                );
+              }
+
+              return (
+                <>
+                  {categoryWishlistItems.map((item) => (
+                    <Card
+                      key={item.id}
+                      icon={category.icon}
+                      title={item.name}
+                      subtitle={
+                        item.status === "HESITATING"
+                          ? "🤔 Hesitating"
+                          : item.status === "PLANNED"
+                            ? "📌 Planned"
+                            : "✅ Bought"
+                      }
+                      amountLabel={`${item.price} TND`}
+                      amountColorKey="textPrimary"
+                      onPress={() =>
+                        router.push(`/wishlist-detail/${item.id}` as any)
+                      }
+                    />
+                  ))}
+
+                  <TouchableOpacity
+                    onPress={() => router.push("/wishlist" as any)}
+                    style={styles.seeAllLink}
+                  >
+                    <Text style={{ color: colors.primary, fontWeight: "600" }}>
+                      See all wishlist items →
+                    </Text>
+                  </TouchableOpacity>
+                </>
+              );
+            })()}
+          </View>
         ) : null}
       </ScrollView>
       {showDeleteConfirm ? (
@@ -533,4 +578,5 @@ const styles = StyleSheet.create({
   },
   confirmCancelButton: { padding: 10 },
   confirmDeleteButton: { padding: 10, borderRadius: 8, paddingHorizontal: 16 },
+  seeAllLink: { marginTop: 12, alignItems: "center", padding: 8 },
 });

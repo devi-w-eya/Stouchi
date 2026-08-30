@@ -35,6 +35,17 @@ export default function CategoriesListScreen() {
           </Text>
         </TouchableOpacity>
       </View>
+    
+      <View style={styles.navButtonRow}>
+        <TouchableOpacity onPress={() => router.push("/recurring" as any)} style={[styles.navButton, { borderColor: colors.border }]}>
+          <Text style={{ color: colors.textPrimary, fontWeight: "600", fontSize: 13 }}>🔄 Recurring Expenses</Text>
+          
+        </TouchableOpacity>
+        
+        <TouchableOpacity onPress={() => router.push("/wishlist" as any)} style={[styles.navButton, { borderColor: colors.border }]}>
+          <Text style={{ color: colors.textPrimary, fontWeight: "600", fontSize: 13 }}>🛍️ Wishlist</Text>
+        </TouchableOpacity>
+      </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {expenseCategories.length === 0 ? (
@@ -70,7 +81,7 @@ export default function CategoriesListScreen() {
                   percent > 100 ? "over" : percent > 80 ? "warning" : "normal"
                 }
                 showPercentLabel
-                 onPress={() => router.push(`/category-detail/${category.id}`)}
+                onPress={() => router.push(`/category-detail/${category.id}`)}
               />
             );
           })
@@ -99,4 +110,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  navButtonRow: { flexDirection: "row", gap: 8, paddingHorizontal: 16, marginBottom: 12 },
+  navButton: { flex: 1, paddingVertical: 10, borderRadius: 8, borderWidth: 1, alignItems: "center" },
 });

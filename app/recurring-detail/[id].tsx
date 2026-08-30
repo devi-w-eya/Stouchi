@@ -1,0 +1,1 @@
+export { default } from "../../src/features/recurring/screens/RecurringDetailScreen";

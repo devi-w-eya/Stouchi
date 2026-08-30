@@ -7,6 +7,7 @@ import {
   Image,
 } from "react-native";
 import { useSelector } from "react-redux";
+import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Card } from "../../../components/Card";
 import { useTheme } from "../../../context/ThemeContext";
@@ -105,6 +106,7 @@ export default function HomeScreen() {
                 subtitle={t.note ?? ""}
                 amountLabel={`${t.amount > 0 ? "+" : ""}${t.amount} TND`}
                 amountColorKey={t.type === "INCOME" ? "income" : "expense"}
+                onPress={() => router.push(`/transaction-detail/${t.id}` as any)}   
               />
             );
           })
@@ -122,6 +124,7 @@ export default function HomeScreen() {
               progressPercent={c.percent}
               progressState={c.percent > 100 ? "over" : c.percent > 80 ? "warning" : "normal"}
               showPercentLabel
+              onPress={() => router.push(`/category-detail/${c.id}` as any)}   
             />
           ))
         )}

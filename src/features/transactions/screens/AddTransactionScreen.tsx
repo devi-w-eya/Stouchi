@@ -43,9 +43,7 @@ export default function AddTransactionScreen() {
   const [note, setNote] = useState("");
   const [error, setError] = useState("");
 
-  const visibleCategories = categories.filter(
-    (c) => c.type === (mode === "INCOME" ? "INCOME" : "EXPENSE"),
-  );
+  const visibleCategories = categories;
   const selectedCategory = categories.find((c) => c.id === selectedCategoryId);
 
   const handleNumpadPress = (key: string) => {

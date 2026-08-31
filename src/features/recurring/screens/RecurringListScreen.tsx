@@ -4,6 +4,7 @@ import { router } from "expo-router";
 import { Card } from "../../../components/Card";
 import { useTheme } from "../../../context/ThemeContext";
 import { RootState } from "../../../store";
+import * as Notifications from "expo-notifications";
 
 export default function RecurringListScreen() {
   const { colors } = useTheme();
@@ -65,6 +66,8 @@ export default function RecurringListScreen() {
         <TouchableOpacity onPress={() => router.push("/create-recurring" as any)}>
           <Text style={{ color: colors.primary, fontSize: 24 }}>+</Text>
         </TouchableOpacity>
+        
+ 
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>

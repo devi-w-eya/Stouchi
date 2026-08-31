@@ -1,9 +1,12 @@
 import { SafeAreaView, StyleSheet, ScrollView, View, Text } from "react-native";
 import { useSelector } from "react-redux";
+import { router } from "expo-router";
 import { Card } from "../../src/components/Card";
+import { DonutChart } from "../../src/components/DonutChart";
 import { useTheme } from "../../src/context/ThemeContext";
 import { RootState } from "../../src/store";
-import { router } from "expo-router";
+
+const CHART_COLORS = ["primary", "savings", "warning", "income", "expense"] as const;
 
 export default function AnalysisScreen() {
   const { colors } = useTheme();
@@ -18,7 +21,6 @@ export default function AnalysisScreen() {
     .reduce((sum, t) => sum + t.amount, 0);
 
   const categoryBreakdown = categories
-    .filter((c) => c.type === "EXPENSE")
     .map((c) => {
       const spent = transactions
         .filter((t) => t.categoryId === c.id && t.type === "EXPENSE")
@@ -31,14 +33,20 @@ export default function AnalysisScreen() {
     .sort((a, b) => b.spent - a.spent);
 
   const incomeBreakdown = categories
-  .map((c) => {
-    const received = transactions
-      .filter((t) => t.categoryId === c.id && t.type === "INCOME")
-      .reduce((sum, t) => sum + t.amount, 0);
-    return { ...c, received };
-  })
-  .filter((c) => c.received > 0)
-  .sort((a, b) => b.received - a.received);
+    .map((c) => {
+      const received = transactions
+        .filter((t) => t.categoryId === c.id && t.type === "INCOME")
+        .reduce((sum, t) => sum + t.amount, 0);
+      return { ...c, received };
+    })
+    .filter((c) => c.received > 0)
+    .sort((a, b) => b.received - a.received);
+
+  const chartData = categoryBreakdown.map((c, index) => ({
+    label: c.name,
+    value: c.spent,
+    color: colors[CHART_COLORS[index % CHART_COLORS.length]],
+  }));
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -55,6 +63,23 @@ export default function AnalysisScreen() {
             <Text style={{ color: colors.expense, fontWeight: "700", fontSize: 20 }}>-{totalExpense}</Text>
           </View>
         </View>
+
+        {chartData.length > 0 ? (
+          <View style={[styles.chartCard, { borderColor: colors.border }]}>
+            <Text style={[styles.sectionTitle, { color: colors.textPrimary, marginBottom: 0 }]}>Spending by Category</Text>
+            <DonutChart data={chartData} centerLabel="TND spent" centerValue={String(totalExpense)} />
+            <View style={styles.legendWrap}>
+              {chartData.map((seg, i) => (
+                <View key={i} style={styles.legendItem}>
+                  <View style={[styles.legendDot, { backgroundColor: seg.color }]} />
+                  <Text style={{ color: colors.textSecondary, fontSize: 12 }}>
+                    {seg.label} {((seg.value / totalExpense) * 100).toFixed(0)}%
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        ) : null}
 
         <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Category Breakdown</Text>
         {categoryBreakdown.length === 0 ? (
@@ -106,5 +131,9 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 20, fontWeight: "700", marginBottom: 16 },
   summaryRow: { flexDirection: "row", gap: 8, marginBottom: 20 },
   summaryCard: { flex: 1, borderWidth: 1, borderRadius: 10, padding: 12, alignItems: "center" },
+  chartCard: { borderWidth: 1, borderRadius: 12, padding: 16, marginBottom: 20, alignItems: "center" },
+  legendWrap: { flexDirection: "row", flexWrap: "wrap", gap: 12, justifyContent: "center", marginTop: 8 },
+  legendItem: { flexDirection: "row", alignItems: "center", gap: 6 },
+  legendDot: { width: 10, height: 10, borderRadius: 5 },
   sectionTitle: { fontSize: 14, fontWeight: "700", marginBottom: 8, marginTop: 8 },
 });

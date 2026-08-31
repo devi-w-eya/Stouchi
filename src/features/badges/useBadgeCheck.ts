@@ -1,4 +1,5 @@
 import { useDispatch, useSelector } from "react-redux";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { RootState } from "../../store";
 import { unlockBadge } from "./badgeSlice";
 import { isBadgeUnlocked } from "./checkBadges";
@@ -21,8 +22,13 @@ export function useBadgeCheck() {
           badgeId: badge.id,
           unlockedAt: new Date().toISOString(),
         }));
+
         if (user) {
-          dispatch(setUser({ ...user, totalXP: user.totalXP + badge.xpReward }));
+          const updatedUser = { ...user, totalXP: user.totalXP + badge.xpReward };
+          dispatch(setUser(updatedUser));
+          AsyncStorage.setItem("@stouchi/user", JSON.stringify(updatedUser)).catch((error) => {
+            console.log("Failed to persist XP update", error);
+          });
         }
       }
     });

@@ -14,10 +14,10 @@ import { router } from "expo-router";
 import { useTheme } from "../../../context/ThemeContext";
 import { RootState } from "../../../store";
 import { addWishlistItem, WishlistItem } from "../../wishlist/wishlistSlice";
+import { sendBudgetExceededAlert } from "../../../services/notifications";
 import {
   addTransaction,
   Transaction,
-  TransactionType,
   PaidFrom,
 } from "../transactionSlice";
 import { editCategory } from "../../categories/categorySlice";
@@ -30,23 +30,31 @@ export default function AddTransactionScreen() {
   const dispatch = useDispatch();
   const user = useSelector((state: RootState) => state.auth.user);
   const categories = useSelector((state: RootState) => state.categories.items);
-  const [wishlistName, setWishlistName] = useState("");
-  const [wishlistStatus, setWishlistStatus] = useState<
-    "PLANNED" | "HESITATING"
-  >("PLANNED");
+  const transactions = useSelector((state: RootState) => state.transactions.items);
+  const { checkAndUnlockBadges } = useBadgeCheck();
 
   const [mode, setMode] = useState<TxMode>("EXPENSE");
   const [amount, setAmount] = useState("0");
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(
-    null,
-  );
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [paidFrom, setPaidFrom] = useState<PaidFrom>("BUDGET");
   const [note, setNote] = useState("");
   const [error, setError] = useState("");
-  const { checkAndUnlockBadges } = useBadgeCheck();
+  const [wishlistName, setWishlistName] = useState("");
+  const [wishlistStatus, setWishlistStatus] = useState<"PLANNED" | "HESITATING">("PLANNED");
 
   const visibleCategories = categories;
   const selectedCategory = categories.find((c) => c.id === selectedCategoryId);
+
+  const resetForm = () => {
+    setAmount("0");
+    setSelectedCategoryId(null);
+    setNote("");
+    setPaidFrom("BUDGET");
+    setWishlistName("");
+    setWishlistStatus("PLANNED");
+    setMode("EXPENSE");
+    setError("");
+  };
 
   const handleNumpadPress = (key: string) => {
     if (key === "del") {
@@ -74,7 +82,6 @@ export default function AddTransactionScreen() {
         setError("Pick a category");
         return;
       }
-      setError("");
 
       const newItem: WishlistItem = {
         id: Date.now().toString(),
@@ -84,13 +91,13 @@ export default function AddTransactionScreen() {
         price: numAmount,
         status: wishlistStatus,
         timerDurationMinutes: wishlistStatus === "HESITATING" ? 1440 : null,
-        timerStartedAt:
-          wishlistStatus === "HESITATING" ? new Date().toISOString() : null,
+        timerStartedAt: wishlistStatus === "HESITATING" ? new Date().toISOString() : null,
         note: note || null,
         createdAt: new Date().toISOString(),
       };
 
       dispatch(addWishlistItem(newItem));
+      resetForm();
       router.back();
       return;
     }
@@ -109,7 +116,6 @@ export default function AddTransactionScreen() {
         return;
       }
     }
-    setError("");
 
     const newTransaction: Transaction = {
       id: Date.now().toString(),
@@ -126,17 +132,27 @@ export default function AddTransactionScreen() {
 
     dispatch(addTransaction(newTransaction));
 
-    // if paid from savings, deduct from the category's currentSaved
+    if (mode === "EXPENSE" && paidFrom === "BUDGET" && selectedCategory) {
+      const categoryTransactions = [...transactions, newTransaction].filter(
+        (t) => t.categoryId === selectedCategoryId && t.type === "EXPENSE"
+      );
+      const totalSpent = categoryTransactions.reduce((sum, t) => sum + Math.abs(t.amount), 0);
+      if (totalSpent > selectedCategory.budgetAmount) {
+        sendBudgetExceededAlert(selectedCategory.name, totalSpent - selectedCategory.budgetAmount);
+      }
+    }
+
     if (mode === "EXPENSE" && paidFrom === "SAVINGS" && selectedCategory) {
       dispatch(
         editCategory({
           ...selectedCategory,
           currentSaved: selectedCategory.currentSaved - numAmount,
-        }),
+        })
       );
     }
-    checkAndUnlockBadges();
 
+    checkAndUnlockBadges();
+    resetForm();
     router.back();
   };
 
@@ -149,17 +165,12 @@ export default function AddTransactionScreen() {
       style={{ flex: 1, backgroundColor: colors.background }}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-      >
+      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         <View style={styles.headerRow}>
           <TouchableOpacity onPress={() => router.back()}>
             <Text style={{ color: colors.textPrimary, fontSize: 22 }}>✕</Text>
           </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>
-            Add Transaction
-          </Text>
+          <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Add Transaction</Text>
           <View style={{ width: 22 }} />
         </View>
 
@@ -186,17 +197,8 @@ export default function AddTransactionScreen() {
                 },
               ]}
             >
-              <Text
-                style={{
-                  color: mode === m ? "#000000" : colors.textSecondary,
-                  fontWeight: "600",
-                }}
-              >
-                {m === "INCOME"
-                  ? "Income"
-                  : m === "EXPENSE"
-                    ? "Expense"
-                    : "Wishlist"}
+              <Text style={{ color: mode === m ? "#000000" : colors.textSecondary, fontWeight: "600" }}>
+                {m === "INCOME" ? "Income" : m === "EXPENSE" ? "Expense" : "Wishlist"}
               </Text>
             </TouchableOpacity>
           ))}
@@ -204,368 +206,149 @@ export default function AddTransactionScreen() {
 
         {mode === "WISHLIST" ? (
           <>
-            <Text style={[styles.label, { color: colors.textSecondary }]}>
-              Item Name
-            </Text>
+            <Text style={[styles.label, { color: colors.textSecondary }]}>Item Name</Text>
             <TextInput
-              style={[
-                styles.noteInput,
-                { borderColor: colors.border, color: colors.textPrimary },
-              ]}
-              placeholder="e.g. Dyson Airwrap"
-              placeholderTextColor={colors.textSecondary}
-              value={wishlistName}
-              onChangeText={setWishlistName}
+              style={[styles.noteInput, { borderColor: colors.border, color: colors.textPrimary }]}
+              placeholder="e.g. Dyson Airwrap" placeholderTextColor={colors.textSecondary}
+              value={wishlistName} onChangeText={setWishlistName}
             />
 
             <View style={styles.amountRow}>
-              <Text
-                style={{
-                  color: colors.savings,
-                  fontSize: 40,
-                  fontWeight: "700",
-                }}
-              >
-                {amount}
-              </Text>
-              <Text
-                style={{
-                  color: colors.textSecondary,
-                  fontSize: 18,
-                  marginLeft: 6,
-                }}
-              >
-                TND
-              </Text>
+              <Text style={{ color: colors.savings, fontSize: 40, fontWeight: "700" }}>{amount}</Text>
+              <Text style={{ color: colors.textSecondary, fontSize: 18, marginLeft: 6 }}>TND</Text>
             </View>
 
-            <Text style={[styles.label, { color: colors.textSecondary }]}>
-              Category
-            </Text>
+            <Text style={[styles.label, { color: colors.textSecondary }]}>Category</Text>
             <View style={styles.chipRow}>
-              {categories
-                .filter((c) => c.type === "EXPENSE")
-                .map((c) => (
-                  <TouchableOpacity
-                    key={c.id}
-                    onPress={() => setSelectedCategoryId(c.id)}
-                    style={[
-                      styles.chip,
-                      {
-                        borderColor:
-                          selectedCategoryId === c.id
-                            ? colors.primary
-                            : colors.border,
-                      },
-                    ]}
-                  >
-                    <Text style={{ color: colors.textPrimary, fontSize: 13 }}>
-                      {c.icon} {c.name}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+              {categories.map((c) => (
+                <TouchableOpacity
+                  key={c.id}
+                  onPress={() => setSelectedCategoryId(c.id)}
+                  style={[styles.chip, { borderColor: selectedCategoryId === c.id ? colors.primary : colors.border }]}
+                >
+                  <Text style={{ color: colors.textPrimary, fontSize: 13 }}>{c.icon} {c.name}</Text>
+                </TouchableOpacity>
+              ))}
               <TouchableOpacity
                 onPress={() => router.push("/create-category" as any)}
-                style={[
-                  styles.chip,
-                  { borderColor: colors.primary, borderStyle: "dashed" },
-                ]}
+                style={[styles.chip, { borderColor: colors.primary, borderStyle: "dashed" }]}
               >
-                <Text style={{ color: colors.primary, fontSize: 13 }}>
-                  + New
-                </Text>
+                <Text style={{ color: colors.primary, fontSize: 13 }}>+ New</Text>
               </TouchableOpacity>
             </View>
 
-            <Text style={[styles.label, { color: colors.textSecondary }]}>
-              Status
-            </Text>
+            <Text style={[styles.label, { color: colors.textSecondary }]}>Status</Text>
             <View style={styles.payFromRow}>
               <TouchableOpacity
                 onPress={() => setWishlistStatus("PLANNED")}
-                style={[
-                  styles.payFromCard,
-                  {
-                    borderColor:
-                      wishlistStatus === "PLANNED"
-                        ? colors.primary
-                        : colors.border,
-                  },
-                ]}
+                style={[styles.payFromCard, { borderColor: wishlistStatus === "PLANNED" ? colors.primary : colors.border }]}
               >
-                <Text style={{ color: colors.textPrimary, fontWeight: "600" }}>
-                  📌 Planned
-                </Text>
+                <Text style={{ color: colors.textPrimary, fontWeight: "600" }}>📌 Planned</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => setWishlistStatus("HESITATING")}
-                style={[
-                  styles.payFromCard,
-                  {
-                    borderColor:
-                      wishlistStatus === "HESITATING"
-                        ? colors.primary
-                        : colors.border,
-                  },
-                ]}
+                style={[styles.payFromCard, { borderColor: wishlistStatus === "HESITATING" ? colors.primary : colors.border }]}
               >
-                <Text style={{ color: colors.textPrimary, fontWeight: "600" }}>
-                  🤔 Hesitating
-                </Text>
+                <Text style={{ color: colors.textPrimary, fontWeight: "600" }}>🤔 Hesitating</Text>
               </TouchableOpacity>
             </View>
 
-            <Text style={[styles.label, { color: colors.textSecondary }]}>
-              Note (optional)
-            </Text>
+            <Text style={[styles.label, { color: colors.textSecondary }]}>Note (optional)</Text>
             <TextInput
-              style={[
-                styles.noteInput,
-                { borderColor: colors.border, color: colors.textPrimary },
-              ]}
-              placeholder="Add a note..."
-              placeholderTextColor={colors.textSecondary}
-              value={note}
-              onChangeText={setNote}
+              style={[styles.noteInput, { borderColor: colors.border, color: colors.textPrimary }]}
+              placeholder="Add a note..." placeholderTextColor={colors.textSecondary}
+              value={note} onChangeText={setNote}
             />
 
-            {error ? (
-              <Text
-                style={{
-                  color: colors.expense,
-                  textAlign: "center",
-                  marginTop: 8,
-                }}
-              >
-                {error}
-              </Text>
-            ) : null}
+            {error ? <Text style={{ color: colors.expense, textAlign: "center", marginTop: 8 }}>{error}</Text> : null}
 
             <View style={styles.numpad}>
-              {[
-                "1",
-                "2",
-                "3",
-                "4",
-                "5",
-                "6",
-                "7",
-                "8",
-                "9",
-                ".",
-                "0",
-                "del",
-              ].map((key) => (
-                <TouchableOpacity
-                  key={key}
-                  onPress={() => handleNumpadPress(key)}
-                  style={[styles.numpadKey, { borderColor: colors.border }]}
-                >
-                  <Text style={{ color: colors.textPrimary, fontSize: 20 }}>
-                    {key === "del" ? "⌫" : key}
-                  </Text>
+              {["1", "2", "3", "4", "5", "6", "7", "8", "9", ".", "0", "del"].map((key) => (
+                <TouchableOpacity key={key} onPress={() => handleNumpadPress(key)} style={[styles.numpadKey, { borderColor: colors.border }]}>
+                  <Text style={{ color: colors.textPrimary, fontSize: 20 }}>{key === "del" ? "⌫" : key}</Text>
                 </TouchableOpacity>
               ))}
             </View>
 
-            <TouchableOpacity
-              style={[styles.saveButton, { backgroundColor: colors.primary }]}
-              onPress={handleSave}
-            >
-              <Text style={{ color: "#000000", fontWeight: "700" }}>
-                Add to Wishlist
-              </Text>
+            <TouchableOpacity style={[styles.saveButton, { backgroundColor: colors.primary }]} onPress={handleSave}>
+              <Text style={{ color: "#000000", fontWeight: "700" }}>Add to Wishlist</Text>
             </TouchableOpacity>
           </>
         ) : (
           <>
             <View style={styles.amountRow}>
-              <Text
-                style={{
-                  color: mode === "INCOME" ? colors.income : colors.expense,
-                  fontSize: 40,
-                  fontWeight: "700",
-                }}
-              >
-                {mode === "INCOME" ? "+" : "-"}
-                {amount}
+              <Text style={{ color: mode === "INCOME" ? colors.income : colors.expense, fontSize: 40, fontWeight: "700" }}>
+                {mode === "INCOME" ? "+" : "-"}{amount}
               </Text>
-              <Text
-                style={{
-                  color: colors.textSecondary,
-                  fontSize: 18,
-                  marginLeft: 6,
-                }}
-              >
-                TND
-              </Text>
+              <Text style={{ color: colors.textSecondary, fontSize: 18, marginLeft: 6 }}>TND</Text>
             </View>
 
-            <Text style={[styles.label, { color: colors.textSecondary }]}>
-              Category
-            </Text>
+            <Text style={[styles.label, { color: colors.textSecondary }]}>Category</Text>
             <View style={styles.chipRow}>
               {visibleCategories.length === 0 ? (
-                <TouchableOpacity
-                  onPress={() => router.push("/create-category")}
-                  style={styles.createCategoryLink}
-                >
-                  <Text
-                    style={{
-                      color: colors.primary,
-                      fontSize: 13,
-                      fontWeight: "600",
-                    }}
-                  >
-                    No categories yet tap to create one
-                  </Text>
+                <TouchableOpacity onPress={() => router.push("/create-category" as any)} style={styles.createCategoryLink}>
+                  <Text style={{ color: colors.primary, fontSize: 13, fontWeight: "600" }}>No categories yet — tap to create one</Text>
                 </TouchableOpacity>
               ) : (
                 visibleCategories.map((c) => (
                   <TouchableOpacity
                     key={c.id}
                     onPress={() => setSelectedCategoryId(c.id)}
-                    style={[
-                      styles.chip,
-                      {
-                        borderColor:
-                          selectedCategoryId === c.id
-                            ? colors.primary
-                            : colors.border,
-                      },
-                    ]}
+                    style={[styles.chip, { borderColor: selectedCategoryId === c.id ? colors.primary : colors.border }]}
                   >
-                    <Text style={{ color: colors.textPrimary, fontSize: 13 }}>
-                      {c.icon} {c.name}
-                    </Text>
+                    <Text style={{ color: colors.textPrimary, fontSize: 13 }}>{c.icon} {c.name}</Text>
                   </TouchableOpacity>
                 ))
               )}
               <TouchableOpacity
-                onPress={() => router.push("/create-category")}
-                style={[
-                  styles.chip,
-                  { borderColor: colors.primary, borderStyle: "dashed" },
-                ]}
+                onPress={() => router.push("/create-category" as any)}
+                style={[styles.chip, { borderColor: colors.primary, borderStyle: "dashed" }]}
               >
-                <Text style={{ color: colors.primary, fontSize: 13 }}>
-                  + New
-                </Text>
+                <Text style={{ color: colors.primary, fontSize: 13 }}>+ New</Text>
               </TouchableOpacity>
             </View>
 
             {mode === "EXPENSE" ? (
               <>
-                <Text style={[styles.label, { color: colors.textSecondary }]}>
-                  Pay from
-                </Text>
+                <Text style={[styles.label, { color: colors.textSecondary }]}>Pay from</Text>
                 <View style={styles.payFromRow}>
                   <TouchableOpacity
                     onPress={() => setPaidFrom("BUDGET")}
-                    style={[
-                      styles.payFromCard,
-                      {
-                        borderColor:
-                          paidFrom === "BUDGET"
-                            ? colors.primary
-                            : colors.border,
-                      },
-                    ]}
+                    style={[styles.payFromCard, { borderColor: paidFrom === "BUDGET" ? colors.primary : colors.border }]}
                   >
-                    <Text
-                      style={{ color: colors.textPrimary, fontWeight: "600" }}
-                    >
-                      Budget
-                    </Text>
-                    <Text style={{ color: colors.textSecondary, fontSize: 12 }}>
-                      Remaining: {budgetRemaining} TND
-                    </Text>
+                    <Text style={{ color: colors.textPrimary, fontWeight: "600" }}>Budget</Text>
+                    <Text style={{ color: colors.textSecondary, fontSize: 12 }}>Remaining: {budgetRemaining} TND</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     onPress={() => setPaidFrom("SAVINGS")}
-                    style={[
-                      styles.payFromCard,
-                      {
-                        borderColor:
-                          paidFrom === "SAVINGS"
-                            ? colors.primary
-                            : colors.border,
-                      },
-                    ]}
+                    style={[styles.payFromCard, { borderColor: paidFrom === "SAVINGS" ? colors.primary : colors.border }]}
                   >
-                    <Text
-                      style={{ color: colors.textPrimary, fontWeight: "600" }}
-                    >
-                      Savings
-                    </Text>
-                    <Text style={{ color: colors.textSecondary, fontSize: 12 }}>
-                      Remaining: {savingsRemaining} TND
-                    </Text>
+                    <Text style={{ color: colors.textPrimary, fontWeight: "600" }}>Savings</Text>
+                    <Text style={{ color: colors.textSecondary, fontSize: 12 }}>Remaining: {savingsRemaining} TND</Text>
                   </TouchableOpacity>
                 </View>
               </>
             ) : null}
 
-            <Text style={[styles.label, { color: colors.textSecondary }]}>
-              Note (optional)
-            </Text>
+            <Text style={[styles.label, { color: colors.textSecondary }]}>Note (optional)</Text>
             <TextInput
-              style={[
-                styles.noteInput,
-                { borderColor: colors.border, color: colors.textPrimary },
-              ]}
-              placeholder="Add a note..."
-              placeholderTextColor={colors.textSecondary}
-              value={note}
-              onChangeText={setNote}
+              style={[styles.noteInput, { borderColor: colors.border, color: colors.textPrimary }]}
+              placeholder="Add a note..." placeholderTextColor={colors.textSecondary}
+              value={note} onChangeText={setNote}
             />
 
-            {error ? (
-              <Text
-                style={{
-                  color: colors.expense,
-                  textAlign: "center",
-                  marginTop: 8,
-                }}
-              >
-                {error}
-              </Text>
-            ) : null}
+            {error ? <Text style={{ color: colors.expense, textAlign: "center", marginTop: 8 }}>{error}</Text> : null}
 
             <View style={styles.numpad}>
-              {[
-                "1",
-                "2",
-                "3",
-                "4",
-                "5",
-                "6",
-                "7",
-                "8",
-                "9",
-                ".",
-                "0",
-                "del",
-              ].map((key) => (
-                <TouchableOpacity
-                  key={key}
-                  onPress={() => handleNumpadPress(key)}
-                  style={[styles.numpadKey, { borderColor: colors.border }]}
-                >
-                  <Text style={{ color: colors.textPrimary, fontSize: 20 }}>
-                    {key === "del" ? "⌫" : key}
-                  </Text>
+              {["1", "2", "3", "4", "5", "6", "7", "8", "9", ".", "0", "del"].map((key) => (
+                <TouchableOpacity key={key} onPress={() => handleNumpadPress(key)} style={[styles.numpadKey, { borderColor: colors.border }]}>
+                  <Text style={{ color: colors.textPrimary, fontSize: 20 }}>{key === "del" ? "⌫" : key}</Text>
                 </TouchableOpacity>
               ))}
             </View>
 
-            <TouchableOpacity
-              style={[styles.saveButton, { backgroundColor: colors.primary }]}
-              onPress={handleSave}
-            >
-              <Text style={{ color: "#000000", fontWeight: "700" }}>
-                Save Transaction
-              </Text>
+            <TouchableOpacity style={[styles.saveButton, { backgroundColor: colors.primary }]} onPress={handleSave}>
+              <Text style={{ color: "#000000", fontWeight: "700" }}>Save Transaction</Text>
             </TouchableOpacity>
           </>
         )}
@@ -576,50 +359,19 @@ export default function AddTransactionScreen() {
 
 const styles = StyleSheet.create({
   scrollContent: { padding: 20, paddingTop: 50, paddingBottom: 60 },
-  headerRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 20,
-  },
+  headerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 20 },
   headerTitle: { fontSize: 18, fontWeight: "700" },
   modeRow: { flexDirection: "row", gap: 8, marginBottom: 20 },
   modeButton: { flex: 1, padding: 10, borderRadius: 20, alignItems: "center" },
-  amountRow: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "flex-end",
-    marginBottom: 20,
-  },
-  label: {
-    fontSize: 12,
-    marginBottom: 8,
-    marginTop: 8,
-    textTransform: "uppercase",
-  },
+  amountRow: { flexDirection: "row", justifyContent: "center", alignItems: "flex-end", marginBottom: 20 },
+  label: { fontSize: 12, marginBottom: 8, marginTop: 8, textTransform: "uppercase" },
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 8 },
-  chip: {
-    borderWidth: 1,
-    borderRadius: 20,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-  },
+  chip: { borderWidth: 1, borderRadius: 20, paddingVertical: 8, paddingHorizontal: 12 },
   payFromRow: { flexDirection: "row", gap: 8, marginBottom: 8 },
   payFromCard: { flex: 1, borderWidth: 1, borderRadius: 8, padding: 12 },
   noteInput: { borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 8 },
   numpad: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 12 },
-  numpadKey: {
-    width: "30%",
-    paddingVertical: 16,
-    borderWidth: 1,
-    borderRadius: 8,
-    alignItems: "center",
-  },
-  saveButton: {
-    padding: 14,
-    borderRadius: 8,
-    alignItems: "center",
-    marginTop: 16,
-  },
+  numpadKey: { width: "30%", paddingVertical: 16, borderWidth: 1, borderRadius: 8, alignItems: "center" },
+  saveButton: { padding: 14, borderRadius: 8, alignItems: "center", marginTop: 16 },
   createCategoryLink: { paddingVertical: 8 },
 });

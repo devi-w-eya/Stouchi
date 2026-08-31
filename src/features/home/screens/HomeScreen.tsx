@@ -4,37 +4,60 @@ import {
   View,
   Text,
   ScrollView,
+  TouchableOpacity,
   Image,
 } from "react-native";
 import { useSelector } from "react-redux";
+import { useState } from "react";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Card } from "../../../components/Card";
 import { useTheme } from "../../../context/ThemeContext";
 import { RootState } from "../../../store";
 
+
+
 export default function HomeScreen() {
   const { colors } = useTheme();
   const user = useSelector((state: RootState) => state.auth.user);
   const transactions = useSelector((state: RootState) => state.transactions.items);
   const categories = useSelector((state: RootState) => state.categories.items);
+  const [selectedMonth, setSelectedMonth] = useState(new Date());
+  const goToPreviousMonth = () => {
+  const newDate = new Date(selectedMonth);
+  newDate.setMonth(newDate.getMonth() - 1);
+  setSelectedMonth(newDate);
+};
 
-  const realExpense = transactions
+const goToNextMonth = () => {
+  const newDate = new Date(selectedMonth);
+  newDate.setMonth(newDate.getMonth() + 1);
+  setSelectedMonth(newDate);
+};
+
+const monthLabel = selectedMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+const monthTransactions = transactions.filter((t) => {
+  const txDate = new Date(t.date);
+  return txDate.getMonth() === selectedMonth.getMonth() &&
+         txDate.getFullYear() === selectedMonth.getFullYear();
+});
+
+  const realExpense = monthTransactions
     .filter((t) => t.type === "EXPENSE")
     .reduce((sum, t) => sum + Math.abs(t.amount), 0);
-  const realIncome = transactions
+  const realIncome = monthTransactions
     .filter((t) => t.type === "INCOME")
     .reduce((sum, t) => sum + t.amount, 0);
   const realBalance = realIncome - realExpense;
 
-  const recentTransactions = [...transactions]
+  const recentTransactions = [...monthTransactions]
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .slice(0, 3);
 
   const categoriesWithSpend = categories
     .filter((c) => c.type === "EXPENSE")
     .map((c) => {
-      const spent = transactions
+      const spent = monthTransactions
         .filter((t) => t.categoryId === c.id && t.type === "EXPENSE")
         .reduce((sum, t) => sum + Math.abs(t.amount), 0);
       const percent = c.budgetAmount > 0 ? (spent / c.budgetAmount) * 100 : 0;
@@ -65,10 +88,14 @@ export default function HomeScreen() {
         </View>
 
         <View style={styles.monthRow}>
-          <Ionicons name="chevron-back" size={20} color={colors.textPrimary} />
-          <Text style={[styles.monthText, { color: colors.textPrimary }]}>October 2025</Text>
-          <Ionicons name="chevron-forward" size={20} color={colors.textPrimary} />
-        </View>
+  <TouchableOpacity onPress={goToPreviousMonth}>
+    <Ionicons name="chevron-back" size={20} color={colors.textPrimary} />
+  </TouchableOpacity>
+  <Text style={[styles.monthText, { color: colors.textPrimary }]}>{monthLabel}</Text>
+  <TouchableOpacity onPress={goToNextMonth}>
+    <Ionicons name="chevron-forward" size={20} color={colors.textPrimary} />
+  </TouchableOpacity>
+</View>
 
         <View style={styles.summaryRow}>
           <View style={[styles.summaryCard, { borderColor: colors.border }]}>
@@ -128,6 +155,7 @@ export default function HomeScreen() {
             />
           ))
         )}
+      
       </ScrollView>
     </SafeAreaView>
   );
